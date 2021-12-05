@@ -45,11 +45,11 @@ Block 1: Unknown / unused?
 000001E0   FF FF FF FF  FF FF FF FF  FF FF FF FF  FF FF FF FF  ................
 000001F0   FF FF FF FF  FF FF FF FF  FE 00 3F FF  FF FF FF FF  ..........?.....
 
-Block 2: Unknown
+Block 2: Directory/set table
 
 00000200   00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00  ................
 00000210   00 01 4D 32  35 4D 58 41  42 45 00 00  00 03 00 00  ..M25MXABE......
-00000220   00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00  ................
+00000220   00 01 20 20  20 20 20 20  20 20 00 00  00 55 00 00  ..        ...U..
 00000230   00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00  ................
 00000240   00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00  ................
 00000250   00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00  ................
@@ -64,7 +64,7 @@ Block 2: Unknown
 000002E0   00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00  ................
 000002F0   00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00  ................
 
-Block 3-6?: Directory table
+Block 3-: File table.  (start given by directory/set table)
 
 00000300   00 00 00 00  00 01 4D 32  35 4D 58 41  42 45 00 00  ......M25MXABE..
 00000310   41 43 54 20  20 20 20 20  52 54 00 00  00 00 00 07  ACT     RT......
@@ -81,43 +81,73 @@ Block 3-6?: Directory table
 000003C0   00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00  ................
 000003D0   00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00  ................
 
-*** Directory table ***
+***** Directory/set table *****
+
+Unknown
+  00000200   00 00 00 00  00 00 00 00  00 00 00 00  00 00        |..............|
+First entry
+  00000200                                                00 00                |..|
+  00000210   00 01 4D 32  35 4D 58 41  42 45 00 00  00 03        |..M25MXABE....|
+Second entry
+  00000210                                                00 00                |..|
+  00000220   00 01 20 20  20 20 20 20  20 20 00 00  00 55        |..        ...U|
+End of table?
+  00000220                                                00 00                |..|
+  00000230   00 00                                               |..|              
+
+Exact alignment uncertain. Maybe the entry starts two bytes later.
+
+** Directory/set table entry *** (0x10 bytes each)
+
+valid?
+  00000000   00 00 00 01                          |....|
+name
+  00000004   4D 32 35 4D 58 41 42 45              |M25MXABE|
+first block
+  0000000C   00 00 00 03                          |....|
+
+***** File table *****
 
 unknown
-  00000300   00 00 00 00  00 01                                  ......          
+  00000300   00 00 00 00  00 01                                  |......|
 
-label?
-  00000300                      4D 32  35 4D 58 41  42 45 00 00        M25MXABE..
+directory/set name
+  00000300                      4D 32  35 4D 58 41  42 45 00 00  |M25MXABE..|
+Note: Unclear if the trailing 00 00 is part of the name, or the first entry
+probably part of the name.
 
-First directory entry
+First file table entry
   00000310   41 43 54 20  20 20 20 20  52 54 00 00  00 00 00 07  ACT     RT......
   00000320   00 00 01 47  00 00 00 00  00 00 00 00  00 00 00 00  ...G............
   00000330   00 00 00 00  00 00 04 49  04 49 00 00  00 00 00 00  .......I.I......
   00000340   00 00                                               ..              
 
 Second entry
-  00000340         43 59  43 20 20 20  20 20 52 54  00 00 00 00  ..CYC     RT....
+  00000340         43 59  43 20 20 20  20 20 52 54  00 00 00 00    CYC     RT....
   00000350   01 4F 00 00  00 87 00 00  00 00 00 00  00 00 00 00  .O..............
   00000360   00 00 00 00  00 00 00 00  04 49 04 49  00 00 00 00  .........I.I....
   00000370   00 00 00 00                                         ....            
 
 [...]
 
-*** Directory entry (0x32 bytes each) **
+** File table entry (0x32 bytes each) **
 
 file name
-  00000000   41 43 54 20  20 20 20 20  52 54 00 00               ACT     RT..    
+  00000000   41 43 54 20  20 20 20 20  52 54 00 00               |ACT     RT..|
 
 starting block
-  00000000                                          00 00 00 07              ....
+  00000000                                          00 00 00 07  |....|
 
-number of blocks
-  00000010   00 00 01 47                                         ...G            
+number of blocks - 1
+  00000010   00 00 01 47                                         |...G|
 
 unknown
   00000010                00 00 00 00  00 00 00 00  00 00 00 00      ............
   00000020   00 00 00 00  00 00 04 49  04 49 00 00  00 00 00 00  .......I.I......
   00000030   00 00                                               ..              
 
-Note: Actual file size is one block more, but uncertain if the first block
-is part of the file. Contains the same almost empty data in all files.
+Actual file size is one block more than the size field, but uncertain if the
+first block is part of the file. Contains the same almost empty data in all
+files. But probably it belongs to the file. In continuation images the first
+block clearly is file content and not a header.
+
