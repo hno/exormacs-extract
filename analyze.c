@@ -74,7 +74,7 @@ void hexdump(const char *label, const char *buf, int size)
 void print_dir_entry(struct direntry *entry)
 {
 	printf("%-8.8s.%-4.4s ", &entry->name[0], &entry->name[8]);
-	printf(" first_block=%-4d size=%-5d", be32toh(entry->first_block), be32toh(entry->blocks));
+	printf(" first_block=%-4d size=%-5d", be32toh(entry->first_block), be32toh(entry->blocks)+1);
 	printf("\n");
 }
 
@@ -91,7 +91,7 @@ void save_file(FILE *in, const char *set, struct direntry *entry)
 	}
 	snprintf(path, sizeof(path), "%s/%s.%s", set, filename, entry->name+8);
 	FILE *out = fopen(path, "ab");
-	for (uint32_t file_block = 0; file_block < be32toh(entry->blocks); file_block++) {
+	for (uint32_t file_block = 0; file_block < be32toh(entry->blocks)+1; file_block++) {
 		char buf[0x100];
 		read_at(in, (be32toh(entry->first_block) + file_block) * 0x100, buf, 0x100);
 		fwrite(buf, 0x100, 1, out);
