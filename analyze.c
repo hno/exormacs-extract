@@ -29,11 +29,12 @@
  * a new set of images as data is appended to each file to handle
  * files crossing several image files
  *
- *   mkdir ourput
+ *   mkdir output
  *   for file in img/*.img; do
  *     ./analyze $file output
  *   done
  *
+ ********************************************************************
  */
 
 #include <stdio.h>
