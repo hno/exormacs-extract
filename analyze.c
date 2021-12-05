@@ -30,7 +30,7 @@
  * files crossing several image files
  *
  *   mkdir output
- *   for file in img/*.img; do
+ *   for file in *.img; do
  *     ./analyze $file output
  *   done
  *
