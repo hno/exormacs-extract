@@ -44,8 +44,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 const char *output_folder = NULL;
+int verbose = 0;
 
 struct __attribute__((__packed__)) set_table {
 	char unknown1[0xe];
@@ -136,13 +138,16 @@ void read_file_table(FILE *in, char *set, uint32_t start_block)
 	read_at(in, start_block, buf, sizeof(buf));
 	struct file_table *table = (void *)buf;
 	//hexdump("block", buf, 0x100);
-	hexdump("unknown", table->unknown1, sizeof(table->unknown1));
+	if (verbose)
+		hexdump("unknown", table->unknown1, sizeof(table->unknown1));
 	printf("Set: %.8s\n", table->setname);
 	for (int i = 0; i < 50 && table->table[i].entry.name[0]; i++) {
-		hexdump("file_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
+		if (verbose)
+			hexdump("file_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
 		struct file_table_entry *entry = &table->table[i].entry;
 		print_file_table_entry(set, entry);
-		save_file(in, set, entry);
+		if (output_folder)
+			save_file(in, set, entry);
 	}
 }
 
@@ -152,9 +157,11 @@ void read_set_table(FILE *in, uint32_t start_block)
 	read_at(in, start_block, buf, sizeof(buf));
 	struct set_table *table = (void *)buf;
 	//hexdump("block", buf, 0x100);
-	hexdump("unknown", table->unknown1, sizeof(table->unknown1));
+	if (verbose)
+		hexdump("unknown", table->unknown1, sizeof(table->unknown1));
 	for (int i = 0; i < 50 && table->table[i].entry.valid; i++) {
-		hexdump("set_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
+		if (verbose)
+			hexdump("set_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
 		struct set_table_entry *entry = &table->table[i].entry;
 		print_set_table_entry(entry);
 		char set_name[9];
@@ -165,13 +172,47 @@ void read_set_table(FILE *in, uint32_t start_block)
 	}
 }
 
+const char *program_name = NULL;
+
+void usage(int status)
+{
+	fprintf(stderr, "Usage: %s [-o output] [-v] input.img ...\n", program_name);
+	fprintf(stderr, " -o output     Extracts all files into output folder\n");
+	fprintf(stderr, "               the output folder should be empty on first file\n");
+	fprintf(stderr, " -v            Verbose operation\n");
+	exit(status);
+}
+
 int main(int argc, char **argv)
 {
-	if (argc != 3) {
-		fprintf(stderr, "Usage: %s input.img outputfolder\n", argv[0]);
-		exit(1);
+	int opt;
+	program_name = argv[0];
+
+	while ((opt = getopt(argc, argv, "o:v")) != -1) {
+		switch(opt) {
+		case 'o':
+			output_folder = optarg;
+			break;
+		case 'v':
+			verbose = 1;
+			break;
+		default: /* '?' */
+			usage(0);
+		}
 	}
-	FILE *in = fopen(argv[1], "rb");
-	output_folder = argv[2];
-	read_set_table(in, 2);
+	if (optind >= argc)
+		usage(1);
+
+	for (int i = optind; i < argc; i++) {
+		const char *file = argv[i];
+		if (verbose)
+			printf("Processing %s\n", file);
+		FILE *in = fopen(file, "rb");
+		if (!in) {
+			perror("Open input file");
+			exit(1);
+		}
+		read_set_table(in, 2);
+		fclose(in);
+	}
 }
