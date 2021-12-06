@@ -205,8 +205,7 @@ int main(int argc, char **argv)
 
 	for (int i = optind; i < argc; i++) {
 		const char *file = argv[i];
-		if (verbose)
-			printf("Processing %s\n", file);
+		printf("Processing %s\n", file);
 		FILE *in = fopen(file, "rb");
 		if (!in) {
 			perror("Open input file");
