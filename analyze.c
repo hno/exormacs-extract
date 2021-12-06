@@ -48,6 +48,7 @@
 
 const char *output_folder = NULL;
 int verbose = 0;
+int debug = 0;
 
 struct __attribute__((__packed__)) set_table {
 	char unknown1[0xe];
@@ -70,6 +71,7 @@ struct __attribute__((__packed__)) file_table {
 			char name[12];
 			uint32_t block;
 			uint32_t blocks;
+			char unknown1[30];
 		} entry;
 	} table[];
 };
@@ -80,12 +82,17 @@ void read_at(FILE *in, int start_block, char *buf, int size)
 	fread(buf, size, 1, in);
 }
 
-void hexdump(const char *label, const char *buf, int size)
+void hexdump(const char *buf, int size)
 {
-	if (label)
-		printf("%s: ", label);
 	for (int i = 0; i < size; i++)
 		printf("%s%02X", size > 0 ? " ": "", (unsigned char)buf[i]);
+}
+
+void hexdata(const char *label, const char *buf, int size)
+{
+	if (label)
+		printf("%s ", label);
+	hexdump(buf, size);
 	printf("\n");
 }
 
@@ -100,20 +107,26 @@ void trim_spaces(char *name)
 
 void print_file_table_entry(const char *set, struct file_table_entry *entry)
 {
-	printf("%s/%-8.8s.%-4.4s ", set, &entry->name[0], &entry->name[8]);
-	printf(" block=%-4d size=%-5d", be32toh(entry->block), be32toh(entry->blocks)+1);
+	printf("%-8s/%-8.8s.%-4.4s ", set, &entry->name[0], &entry->name[8]);
+	printf(" block=%-4d", be32toh(entry->block));
+	if (strlen(set)) // Not sure this is right condition. Maybe should look at the extra data after the filename instead.
+		printf(" size=%-4d", be32toh(entry->blocks)+1);
+	else
+		printf("          ");
+	printf(" ");
+	hexdump(entry->unknown1, sizeof(entry->unknown1));
 	printf("\n");
 }
 
 void print_set_table_entry(struct set_table_entry *entry)
 {
-	printf("%-8.8s/ block=%-4d\n", entry->name, be32toh(entry->block));
+	printf("%-8.8s/               block=%-4d\n", entry->name, be32toh(entry->block));
 }
 
-void save_file(FILE *in, const char *set, struct file_table_entry *entry)
+char *prepare_path(const char *set, struct file_table_entry *entry)
 {
 	char filename[10];
-	char path[32];
+	static char path[32];
 	memcpy(filename, entry->name, 8);
 	filename[8] = 0;
 	trim_spaces(filename);
@@ -122,13 +135,31 @@ void save_file(FILE *in, const char *set, struct file_table_entry *entry)
 	snprintf(path, sizeof(path), "%s/%s", output_folder, set);
 	mkdir(path, ACCESSPERMS);
 	snprintf(path, sizeof(path), "%s/%s/%s.%s", output_folder, set, filename, entry->name+8);
-	// Save file
+	return path;
+}
+
+void save_file(FILE *in, const char *set, struct file_table_entry *entry)
+{
+	char *path = prepare_path(set, entry);
 	FILE *out = fopen(path, "ab");
-	for (uint32_t file_block = 0; file_block < be32toh(entry->blocks)+1; file_block++) {
+	uint32_t blocks = be32toh(entry->blocks)+1;
+	for (uint32_t file_block = 0; file_block < blocks; file_block++) {
 		char buf[0x100];
-		read_at(in, (be32toh(entry->block) + file_block) * 0x100, buf, 0x100);
-		fwrite(buf, 0x100, 1, out);
+		read_at(in, be32toh(entry->block) + file_block, buf, sizeof(buf));
+		fwrite(buf, sizeof(buf), 1, out);
 	}
+	fclose(out);
+}
+
+void save_index_file(FILE *in, const char *set, struct file_table_entry *entry)
+{
+	char *path = prepare_path(set, entry);
+	FILE *out = fopen(path, "ab");
+	char buf[0x100];
+	read_at(in, be32toh(entry->block), buf, sizeof(buf));
+	fwrite(buf, sizeof(buf), 1, out);
+	read_at(in, be32toh(*(uint32_t *)(buf+10)), buf, sizeof(buf));
+	fwrite(buf, sizeof(buf), 1, out);
 	fclose(out);
 }
 
@@ -137,17 +168,23 @@ void read_file_table(FILE *in, char *set, uint32_t start_block)
 	char buf[0x400];
 	read_at(in, start_block, buf, sizeof(buf));
 	struct file_table *table = (void *)buf;
-	//hexdump("block", buf, 0x100);
+	if (debug)
+		hexdata("block", buf, 0x100);
 	if (verbose)
-		hexdump("unknown", table->unknown1, sizeof(table->unknown1));
-	printf("Set: %.8s\n", table->setname);
+		hexdata("unknown", table->unknown1, sizeof(table->unknown1));
+	if (verbose)
+		printf("Set: %.8s\n", table->setname);
 	for (int i = 0; i < 50 && table->table[i].entry.name[0]; i++) {
-		if (verbose)
-			hexdump("file_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
+		if (debug)
+			hexdata("file_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
 		struct file_table_entry *entry = &table->table[i].entry;
 		print_file_table_entry(set, entry);
-		if (output_folder)
-			save_file(in, set, entry);
+		if (output_folder) {
+			if (strlen(set)) // Not sure this is right condition. Maybe should look at the extra data after the filename instead.
+				save_file(in, set, entry);
+			else
+				save_index_file(in, set, entry);
+		}
 	}
 }
 
@@ -156,12 +193,12 @@ void read_set_table(FILE *in, uint32_t start_block)
 	char buf[0x100];
 	read_at(in, start_block, buf, sizeof(buf));
 	struct set_table *table = (void *)buf;
-	//hexdump("block", buf, 0x100);
+	//hexdata("block", buf, 0x100);
 	if (verbose)
-		hexdump("unknown", table->unknown1, sizeof(table->unknown1));
+		hexdata("unknown", table->unknown1, sizeof(table->unknown1));
 	for (int i = 0; i < 50 && table->table[i].entry.valid; i++) {
-		if (verbose)
-			hexdump("set_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
+		if (debug)
+			hexdata("set_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
 		struct set_table_entry *entry = &table->table[i].entry;
 		print_set_table_entry(entry);
 		char set_name[9];
@@ -188,12 +225,16 @@ int main(int argc, char **argv)
 	int opt;
 	program_name = argv[0];
 
-	while ((opt = getopt(argc, argv, "o:v")) != -1) {
+	while ((opt = getopt(argc, argv, "o:vd")) != -1) {
 		switch(opt) {
 		case 'o':
 			output_folder = optarg;
 			break;
 		case 'v':
+			verbose = 1;
+			break;
+		case 'd':
+			debug = 1;
 			verbose = 1;
 			break;
 		default: /* '?' */
