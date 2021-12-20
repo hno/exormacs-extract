@@ -1,4 +1,4 @@
-Simple program to dump files from EXORMACS backup sets
+Simple program to dump files from VersaDOS backup sets
 
 This application analyzes an image file and extracts any files
 found with. The output folder should be empty before analyzing
