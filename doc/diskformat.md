@@ -1,4 +1,4 @@
-= Disk structures =
+# Disk structures 
 
 VID
 : Volume Identification Directory. Always sector 0, length 1 sector.
@@ -41,9 +41,9 @@ DTA
 PSN
 : Pysical Sector Number
 
-= Overview =
+# Structural Overview
 
-'''
+```
 (block 0)
 /-------\    /-------\
 |  VID  |--->|  SAT  |
@@ -75,9 +75,9 @@ PSN
 /-------\
 | DB..  |
 \-------/
-'''
+```
 
-= Volume ID Block (VID) =
+# Volume ID Block (VID)
 
 always Sector 0, length 1 sector
 
@@ -106,13 +106,13 @@ always Sector 0, length 1 sector
 | VIDRS1 | 144 $90 | 104 $68 | Reserved
 | VIDMAC | 248 $F8 |   8 $08 | VERSAdos disk (ASCII string 'EXORmacs')
 
-= Sector Allocation Table (SAT) =
+# Sector Allocation Table (SAT)
 
 Sector Allocation Table / Map. Variable length.
 
 One bit per sector of the disk.
 
-= Secondary Directory Block (SDB) =
+# Secondary Directory Block (SDB)
 
 Secondary directory block (list of catalogues), length 1 sector,
 can be chained to additional SDB sectors if needed.
@@ -137,7 +137,7 @@ Each SDE entry contains a name and pointer for one catalogue of files
 | SDBAC1 |  14 $0E |  1 $01 | Reserved
 | SDBRS1 |  15 $0F |  1 $01 | Reserved
 
-= Primary Directory Block (PDB) =
+# Primary Directory Block (PDB)
 
 One catalogue of files. Each 4 sectors large with room for up to NN files,
 Chained to additional PDB blocks if needed.
@@ -151,6 +151,8 @@ Chained to additional PDB blocks if needed.
 | PDE1   |  16 $10 | 50 $32 | First directory entry
 | PDE2   |  64 $40 | 50 $32 | Second directory entry
 | ...
+
+## Primary Directory Entry
 
 Each PDE contains the information about one file name
 
@@ -188,8 +190,10 @@ File attributes/type (DIRATT) (bits 4-7 user defined attribtues)
 | DATISK |     2 | Keyed ISAM - No duplicate keys
 | DATISD |     3 | Keyed ISAM - Duplicate keys allowed; null keys allowed
 
-= File Access Block (FAB) ==
+# File Access Block (FAB)
 
 TBD (Page 84)
 
+# Data Block (DB)
 
+TBD (Page 84)
