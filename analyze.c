@@ -50,14 +50,40 @@ const char *output_folder = NULL;
 int verbose = 0;
 int debug = 0;
 
+struct __attribute__((__packed__)) volume_id_block {
+	char volume[4];
+	uint16_t user_numer;
+	uint32_t sat_block;
+	uint16_t sat_length;
+	uint32_t directory_block;
+	uint32_t pdl;
+	uint32_t os_start_block;
+	uint32_t os_length;
+	uint32_t os_execution_address;
+	uint32_t os_load_address;
+	uint32_t generation_data;
+	char description[20];
+	uint32_t initial_version;
+	uint16_t checksum;
+	char diag_pattern[64];
+	uint32_t diag_directory;
+	uint32_t dump_start_block;
+	uint16_t dump_length;
+	uint32_t slt_start_block;
+	uint16_t slt_length;
+	char reserved[104];
+	char exormacs[8];
+};
+
 struct __attribute__((__packed__)) set_table {
-	char unknown1[0xe];
+	char unknown1[0x10];
 	union {
 		char raw[0x10];
 		struct __attribute__((__packed__)) set_table_entry {
-			uint32_t valid;
+			uint16_t user_numer;
 			char name[8];
 			uint32_t block;
+			uint8_t reserved[2];
 		} entry;
 	} table[];
 };
@@ -196,7 +222,7 @@ void read_set_table(FILE *in, uint32_t start_block)
 	//hexdata("block", buf, 0x100);
 	if (verbose)
 		hexdata("unknown", table->unknown1, sizeof(table->unknown1));
-	for (int i = 0; i < 50 && table->table[i].entry.valid; i++) {
+	for (int i = 0; i < 50 && table->table[i].entry.name[0]; i++) {
 		if (debug)
 			hexdata("set_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
 		struct set_table_entry *entry = &table->table[i].entry;
@@ -207,6 +233,20 @@ void read_set_table(FILE *in, uint32_t start_block)
 		trim_spaces(set_name);
 		read_file_table(in, set_name, be32toh(entry->block));
 	}
+}
+
+void print_volume_id(struct volume_id_block *vid)
+{
+	printf("Volume %.4s - %.20s\n", vid->volume, vid->description);
+}
+
+void read_volume_id(FILE *in)
+{
+	char buf[0x100];
+	read_at(in, 0, buf, sizeof(buf));
+	struct volume_id_block *vid = (void *)buf;
+	print_volume_id(vid);
+	read_set_table(in, be32toh(vid->directory_block));
 }
 
 const char *program_name = NULL;
@@ -252,7 +292,7 @@ int main(int argc, char **argv)
 			perror("Open input file");
 			exit(1);
 		}
-		read_set_table(in, 2);
+		read_volume_id(in);
 		fclose(in);
 	}
 }
