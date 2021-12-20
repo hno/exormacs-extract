@@ -24,6 +24,9 @@ FAB
 DB
 : Data Block / block of sequential records. Variable length.
 
+FILE
+: Linear file 
+
 HDR
 : Header (first few bytes of each SDB, PDB, or FAB); contains linkage
 information to next structure of same type.  FABs have forward and
@@ -40,6 +43,7 @@ PSN
 
 = Overview =
 
+'''
 (block 0)
 /-------\    /-------\
 |  VID  |--->|  SAT  |
@@ -47,28 +51,31 @@ PSN
     |
     v
 /-------\    /-------\ 
-| SDB1  |--->| SDB2  |
-\-------/    \-------/  
+|  SDB  |--->|  SDB  | ...
+|-------|    \-------/  
+| SDE.. |
+\-------/
     |
     v
-/-------\    /-------\    /-------\
-| PDB1  |--->| PDB2  |--->| FILE..|
-\-------/    \-------/    \-------/  
+/-------\    /-------\
+|  PDB  |--->|  PDB  | ...
+|-------|    \-------/  
+| PDE.. |
+\-------/\
+    |     \  /---------\
+    |      ->| FILE    |
+    | 
+    V  
+/-------\    /-------\
+|  FAB  |--->|  FAB  | ...
+|-------|    \-------/  
+    | 
     |
-    |
-    |
-    |          /-------\
-    V      /-->|  DB1  |
-/-------\ /    \-------/
-| FAB1  |<
-\-------/ \    /-------\
-    |      \-->|  DB2  |
-    |          \-------/
     V
 /-------\
-| FAB2  |
+| DB..  |
 \-------/
-
+'''
 
 = Volume ID Block (VID) =
 
