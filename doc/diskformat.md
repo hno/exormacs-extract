@@ -46,28 +46,28 @@ PSN
 ```
 (block 0)
 /-------\    /-------\
-|  VID  |--->|  SAT  |
+|  VID  |--->|  SAT  |              [DISK HEADER & GLOBAL DATA]
 \-------/    \-------/
     |
     v
 /-------\    /-------\ 
-|  SDB  |--->|  SDB  | ...
+|  SDB  |--->|  SDB  | ...          [USERS & DIRECTORIES]
 |-------|    \-------/  
 | SDE.. |
 \-------/
     |
     v
 /-------\    /-------\
-|  PDB  |--->|  PDB  | ...
+|  PDB  |--->|  PDB  | ...          [DIRECTORY CONTENTS]
 |-------|    \-------/  
 | PDE.. |
 \-------/\
     |     \  /---------\
-    |      ->| FILE    |
+    |      ->| FILE    |            [LINEAR FILES]
     |        \---------/
     V  
 /-------\    /-------\
-|  FAB  |--->|  FAB  | ...
+|  FAB  |--->|  FAB  | ...          [NON-LINEAR DATASETS]
 |-------|    \-------/  
     | 
     |
