@@ -75,11 +75,11 @@ struct __attribute__((__packed__)) volume_id_block {
 	char exormacs[8];
 };
 
-struct __attribute__((__packed__)) set_table {
+struct __attribute__((__packed__)) secondary_directory_block {
 	char unknown1[0x10];
 	union {
 		char raw[0x10];
-		struct __attribute__((__packed__)) set_table_entry {
+		struct __attribute__((__packed__)) secondary_directory_block_entry {
 			uint16_t user_numer;
 			char name[8];
 			uint32_t block;
@@ -88,12 +88,12 @@ struct __attribute__((__packed__)) set_table {
 	} table[];
 };
 
-struct __attribute__((__packed__)) file_table {
+struct __attribute__((__packed__)) primary_directory_block {
 	char unknown1[6];
 	char setname[10];
 	union {
 		char raw[0x32];
-		struct __attribute__((__packed__)) file_table_entry {
+		struct __attribute__((__packed__)) primary_directory_block_entry {
 			char name[12];
 			uint32_t block;
 			uint32_t blocks;
@@ -131,7 +131,7 @@ void trim_spaces(char *name)
 	}
 }
 
-void print_file_table_entry(const char *set, struct file_table_entry *entry)
+void print_primary_directory_block_entry(const char *set, struct primary_directory_block_entry *entry)
 {
 	printf("%-8s/%-8.8s.%-4.4s ", set, &entry->name[0], &entry->name[8]);
 	printf(" block=%-4d", be32toh(entry->block));
@@ -144,12 +144,12 @@ void print_file_table_entry(const char *set, struct file_table_entry *entry)
 	printf("\n");
 }
 
-void print_set_table_entry(struct set_table_entry *entry)
+void print_secondary_directory_block_entry(struct secondary_directory_block_entry *entry)
 {
 	printf("%-8.8s/               block=%-4d\n", entry->name, be32toh(entry->block));
 }
 
-char *prepare_path(const char *set, struct file_table_entry *entry)
+char *prepare_path(const char *set, struct primary_directory_block_entry *entry)
 {
 	char filename[10];
 	static char path[32];
@@ -164,7 +164,7 @@ char *prepare_path(const char *set, struct file_table_entry *entry)
 	return path;
 }
 
-void save_file(FILE *in, const char *set, struct file_table_entry *entry)
+void save_file(FILE *in, const char *set, struct primary_directory_block_entry *entry)
 {
 	char *path = prepare_path(set, entry);
 	FILE *out = fopen(path, "ab");
@@ -177,7 +177,7 @@ void save_file(FILE *in, const char *set, struct file_table_entry *entry)
 	fclose(out);
 }
 
-void save_index_file(FILE *in, const char *set, struct file_table_entry *entry)
+void save_index_file(FILE *in, const char *set, struct primary_directory_block_entry *entry)
 {
 	char *path = prepare_path(set, entry);
 	FILE *out = fopen(path, "ab");
@@ -189,11 +189,11 @@ void save_index_file(FILE *in, const char *set, struct file_table_entry *entry)
 	fclose(out);
 }
 
-void read_file_table(FILE *in, char *set, uint32_t start_block)
+void read_primary_directory_block(FILE *in, char *set, uint32_t start_block)
 {
 	char buf[0x400];
 	read_at(in, start_block, buf, sizeof(buf));
-	struct file_table *table = (void *)buf;
+	struct primary_directory_block *table = (void *)buf;
 	if (debug)
 		hexdata("block", buf, 0x100);
 	if (verbose)
@@ -202,11 +202,11 @@ void read_file_table(FILE *in, char *set, uint32_t start_block)
 		printf("Set: %.8s\n", table->setname);
 	for (int i = 0; i < 20; i++) {
 		if (debug)
-			hexdata("file_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
+			hexdata("primary_directory_block_entry", table->table[i].raw, sizeof(table->table[i].raw));
 		if (!table->table[i].entry.name[0])
 			continue;
-		struct file_table_entry *entry = &table->table[i].entry;
-		print_file_table_entry(set, entry);
+		struct primary_directory_block_entry *entry = &table->table[i].entry;
+		print_primary_directory_block_entry(set, entry);
 		if (output_folder) {
 			if (strlen(set)) // Not sure this is right condition. Maybe should look at the extra data after the filename instead.
 				save_file(in, set, entry);
@@ -216,24 +216,24 @@ void read_file_table(FILE *in, char *set, uint32_t start_block)
 	}
 }
 
-void read_set_table(FILE *in, uint32_t start_block)
+void read_secondary_directory_block(FILE *in, uint32_t start_block)
 {
 	char buf[0x100];
 	read_at(in, start_block, buf, sizeof(buf));
-	struct set_table *table = (void *)buf;
+	struct secondary_directory_block *table = (void *)buf;
 	//hexdata("block", buf, 0x100);
 	if (verbose)
 		hexdata("unknown", table->unknown1, sizeof(table->unknown1));
 	for (int i = 0; i < 50 && table->table[i].entry.name[0]; i++) {
 		if (debug)
-			hexdata("set_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
-		struct set_table_entry *entry = &table->table[i].entry;
-		print_set_table_entry(entry);
+			hexdata("secondary_directory_block_entry", table->table[i].raw, sizeof(table->table[i].raw));
+		struct secondary_directory_block_entry *entry = &table->table[i].entry;
+		print_secondary_directory_block_entry(entry);
 		char set_name[9];
 		memcpy(set_name, entry->name, sizeof(entry->name));
 		set_name[8] = 0;
 		trim_spaces(set_name);
-		read_file_table(in, set_name, be32toh(entry->block));
+		read_primary_directory_block(in, set_name, be32toh(entry->block));
 	}
 }
 
@@ -248,7 +248,7 @@ void read_volume_id(FILE *in)
 	read_at(in, 0, buf, sizeof(buf));
 	struct volume_id_block *vid = (void *)buf;
 	print_volume_id(vid);
-	read_set_table(in, be32toh(vid->directory_block));
+	read_secondary_directory_block(in, be32toh(vid->directory_block));
 }
 
 const char *program_name = NULL;
