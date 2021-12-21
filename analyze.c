@@ -200,9 +200,11 @@ void read_file_table(FILE *in, char *set, uint32_t start_block)
 		hexdata("unknown", table->unknown1, sizeof(table->unknown1));
 	if (verbose)
 		printf("Set: %.8s\n", table->setname);
-	for (int i = 0; i < 50 && table->table[i].entry.name[0]; i++) {
+	for (int i = 0; i < 20; i++) {
 		if (debug)
 			hexdata("file_table_entry", table->table[i].raw, sizeof(table->table[i].raw));
+		if (!table->table[i].entry.name[0])
+			continue;
 		struct file_table_entry *entry = &table->table[i].entry;
 		print_file_table_entry(set, entry);
 		if (output_folder) {
