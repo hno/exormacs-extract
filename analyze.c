@@ -58,7 +58,7 @@ struct __attribute__((__packed__)) volume_id_block {
 	uint32_t directory_block;
 	uint32_t pdl;
 	uint32_t os_start_block;
-	uint32_t os_length;
+	uint16_t os_length;
 	uint32_t os_execution_address;
 	uint32_t os_load_address;
 	uint32_t generation_data;
