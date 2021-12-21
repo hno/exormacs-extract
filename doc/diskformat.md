@@ -178,7 +178,7 @@ contains information about one file name
 | DIRDAT | 37 $25 |  1 $01 | Data block size (zero if contiguous)
 | DIRDTEC| 38 $26 |  2 $02 | Data file created or updated
 | DIRDTEA| 40 $28 |  2 $02 | Last date file assigned
-| DIRRS3 | 42 $2A |  8 $06 | Reserved
+| DIRRS3 | 42 $2A |  8 $08 | Reserved
 
 * In current implementation, DIRBLZ=DARDIT
 
