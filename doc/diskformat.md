@@ -1,4 +1,4 @@
-# Disk structures 
+# Disk structures
 
 VID
 : Volume Identification Directory. Always sector 0, length 1 sector.
@@ -21,16 +21,19 @@ PDE
 FAB
 : File allocation block / list of data blocks. Variable length.
 
+FABSD
+: File Allocation Block Segment Descriptor
+
 DB
 : Data Block / block of sequential records. Variable length.
 
 FILE
-: Linear file 
+: Linear file
 
 HDR
 : Header (first few bytes of each SDB, PDB, or FAB); contains linkage
-information to next structure of same type.  FABs have forward and
-backward links; other structures have only forward links.
+information to next structure of same type. FABs have forward and backward
+links; other structures have only forward links.
 
 SLT
 : Sector Lockout Table.
@@ -44,37 +47,34 @@ PSN
 # Structural Overview
 
 ```
-(block 0)
+(sector 0)
 /-------\    /-------\
 |  VID  |--->|  SAT  |              [DISK HEADER & GLOBAL DATA]
 \-------/    \-------/
     |
     v
-/-------\    /-------\ 
+/-------\    /-------\
 |  SDB  |--->|  SDB  | ...          [USERS & DIRECTORIES]
-|-------|    \-------/  
+|-------|    \-------/
 | SDE.. |
 \-------/
     |
     v
 /-------\    /-------\
 |  PDB  |--->|  PDB  | ...          [DIRECTORY CONTENTS]
-|-------|    \-------/  
-| PDE.. |
-\-------/\
-    |     \  /---------\
-    |      ->| FILE    |            [LINEAR FILES]
-    |        \---------/
-    V  
+|-------|    \-------/
+| PDE.. |-
+\-------/ \  /------\
+    |      ->|  DB  |               [LINEAR FILES]
+    |        \------/
+    V
 /-------\    /-------\
 |  FAB  |--->|  FAB  | ...          [NON-LINEAR DATASETS]
-|-------|    \-------/  
-    | 
-    |
-    V
-/-------\
-| DB..  |
-\-------/
+|-------|    \-------/
+|FABSD..|-
+\-------/ \  /------\
+           ->|  DB  |
+             \------/
 ```
 
 # Volume ID Block (VID)
@@ -83,7 +83,7 @@ always Sector 0, length 1 sector
 
 | Symbol |  Offset |  Length | Description
 |--------|---------|---------|------------
-| VIDVOL |   0 $00 |   4 $04 | Volume ASCII identifier 
+| VIDVOL |   0 $00 |   4 $04 | Volume ASCII identifier
 | VIDUSN |   4 $04 |   2 $02 | User number
 | VIDSAT |   6 $06 |   4 $04 | Start of SAT
 | VIDSAL |  10 $0A |   2 $02 | Length of SAT
@@ -139,7 +139,7 @@ Each SDE entry contains a name and pointer for one catalogue of files
 
 # Primary Directory Block (PDB)
 
-One catalogue of files. Each 4 sectors large with room for up to NN files,
+One catalogue of files. Each 4 sectors large with room for up to 20 files,
 Chained to additional PDB blocks if needed.
 
 | Symbol |  Offset | Length | Description
@@ -151,10 +151,11 @@ Chained to additional PDB blocks if needed.
 | PDE1   |  16 $10 | 50 $32 | First directory entry
 | PDE2   |  64 $40 | 50 $32 | Second directory entry
 | ...
+| PDE20
 
 ## Primary Directory Entry
 
-Each PDE contains the information about one file name
+contains information about one file name
 
 
 | Symbol | Offset | Length | Description
@@ -192,8 +193,94 @@ File attributes/type (DIRATT) (bits 4-7 user defined attribtues)
 
 # File Access Block (FAB)
 
-TBD (Page 84)
+The File Access Block (FAB) is used by non-contigous files. Contains
+additional data about the structured file type and pointers to the
+individual segments of the file.
+
+Chained to additional FAB blocks if needed using a doubly-linked list
+allowing the OS to search the data in both directions.
+
+| Symbol | Offset | Length | Description
+|--------|--------|--------|------------
+| FABFLK |  0 $00 |  4 $04 | Pointer to the next FAB (zero if none)
+| FABBLK |  4 $04 |  4 $04 | Pointer to the previous FAB (zero if none)
+| FABUSE |  8 $08 |  1 $01 | Number of FAB Segment Descriptors in use. 0-16.
+| FABPKY*|  9 $09 | 1 $01  | Length of previous FAB's last key
+|        | 10 $10 | FABPKY | Last key in previous FAB (zero length if this is the first FAB)
+| FABSEG | ...    | ...    | Start of first segment descriptor
+
+## FAB Segment Descriptor
+
+Describes one data segment of the structured file
+
+| Symbol | Offset | Length | Description
+|--------|--------|--------|------------
+| FABPSN |  0 $00 |  4 $04 | PSN of data block start (zero if rest of FAB empty)
+| FABREC |  4 $04 |  2 $02 | Number of records in data block
+| FABSGS |  6 $06 |  1 $01 | Size of data block in number of sectors
+| FABKEY |  7 $07 |  1 $01 | Key of last record in data block
+
+* Current implementation always has FABKEY = DIRKEY
+
+** The key may not be equal to the last key in the data block, but it is
+always less than the first key of next data block unless duplicate keys are
+allowed. If in first FAB, FABPKY for first FAB has byte for byte
+correspondence with length of keys established for file and values of
+bytes are zeroes.
 
 # Data Block (DB)
 
-TBD (Page 84)
+Data blocks can contain three different record types, none of which allows
+a record to be split between data blocks:
+
+ * FIXED LENGTH records
+ * VARIABLE LENGTH records
+ * CONTIGUOUS file
+
+## Fixed Length Records:
+The data content of the fixed length record is specified by the user. There
+are no embedded control characters generated by File Management Service
+(FMS). Any unused locations in the data block will be zeroed out.
+
+## Variable Length Records:
+Variable length records have a two-byte field, preceding each record, which
+contains the number of data bytes, followed by the data. The data portion
+of the record can be binary or ASCII. With ASCII specification and a
+formatted write request, FMS will compress spaces. A space compression
+character is indicated by a data byte having the sign bit (bit 1) set,
+while the remaining bi ts (6-0) contain a binary number representing the
+number of spaces to be inserted in place of the compressed character. FMS
+will automatically expand these compressed characters into spaces when such
+files are read, using formatted ASCII I/O. A zero filler byte is stored at
+the end of the data portion of a record if the record length is odd. Any
+unused locations in the da ta block will be zeroed.
+
+## Contiguous Records:
+Records for contiguous files (load modules) are 256 bytes in length. The
+data content, completely specified by the user, contains no embedded
+control characters generated by FMS.
+
+# Deleted files
+
+Deleted files have their first letter zeroed, and blocks marked as free in
+the Sector Allocation Table (SAT).
+
+# Sector Lockout Table Table (SLT)
+The SLT is a contiguous segment of disk that describes the sectors on the
+disk which have been locked out. The number of sectors in the SLT is
+maintained in the VrD and is determined by the number of sectors on the
+disk. Each entry (six bytes) in the SLT consists of two fields. The first
+field is four bytes and contains the physical sector number (PSN) of the
+start of a lockout range. The second field is two bytes and contains the
+number of contiguous sectors to be locked out. The first zero entry
+terminates the list. If no SLT exists, the PSN of the SLT in the VID is set
+to zero.
+
+# Diagnostic Test Areas (DTA)
+The DTA is one sector that describes the areas on the disk available to
+diagnostic programmes as read/write test areas. Each entry (six bytes) in
+the DTA consists of two fields. The first field is four bytes and contains
+the physical sector number (PSN) of the start of a test area. The second
+field is two bytes and contains the length of the test area. The first zero
+entry terminates the list. If no DTA exists, the PSN of the DTA in the VID
+is set to zero.
