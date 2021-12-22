@@ -29,12 +29,6 @@
  * a new set of images as data is appended to each file to handle
  * files crossing several image files
  *
- *   mkdir output
- *
- *   for file in *.img; do
- *     ./analyze $file output
- *   done
- *
  ********************************************************************
  */
 
@@ -51,28 +45,28 @@ int verbose = 0;
 int debug = 0;
 
 struct __attribute__((__packed__)) volume_id_block {
-	char volume[4];
-	uint16_t user_numer;
-	uint32_t sat_block;
-	uint16_t sat_length;
-	uint32_t directory_block;
-	uint32_t pdl;
-	uint32_t os_start_block;
-	uint16_t os_length;
-	uint32_t os_execution_address;
-	uint32_t os_load_address;
-	uint32_t generation_data;
-	char description[20];
-	uint32_t initial_version;
-	uint16_t checksum;
-	char diag_pattern[64];
-	uint32_t diag_directory;
-	uint32_t dump_start_block;
-	uint16_t dump_length;
-	uint32_t slt_start_block;
-	uint16_t slt_length;
-	char reserved[104];
-	char exormacs[8];
+	char volume[4];			// VIDVOL  Volume ASCII identifier
+	uint16_t user_numer;		// VIDUSN  User number
+	uint32_t sat_block;		// VIDSAT  Start of SAT
+	uint16_t sat_length;		// VIDSAL  Length of SAT
+	uint32_t directory_block;	// VIDSDS  Secondary directory start
+	uint32_t pdl;			// VIDPDL  Primary directory PSN list start
+	uint32_t os_start_block;	// VIDOSS  Start of CASE Program Load (IPL) file
+	uint16_t os_length;		// VIDOSL  CPL length
+	uint32_t os_execution_address;	// VIDOSE  CPL execution address
+	uint32_t os_load_address;	// VIDOSA  CPL load address
+	uint32_t generation_data;	// VIDDTE  Generation date
+	char description[20];		// VIDVD   Volume Descriptor
+	uint32_t initial_version;	// VIDVNO  Initial version/revision
+	uint16_t checksum;		// VIDCHK  VID checksum
+	char diag_pattern[64];		// VIDDTP  Diagnostic test pattern
+	uint32_t diag_directory;	// VIDDTA  Diagnostic test area directory
+	uint32_t dump_start_block;	// VIDDAS  Start of dump area
+	uint16_t dump_length;		// VIDDAL  Length of dump area
+	uint32_t slt_start_block;	// VIDSLT  Start of SLT
+	uint16_t slt_length;		// VIDSLL  Length of SLT
+	char reserved[104];		// VIDRS1  Reserved
+	char exormacs[8];		// VIDMAC  VERSAdos disk (ASCII string 'EXORmacs')
 };
 
 struct __attribute__((__packed__)) secondary_directory_block {
