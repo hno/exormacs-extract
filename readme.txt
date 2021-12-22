@@ -7,7 +7,7 @@ files crossing several image files
 
   ./analyze -o output_folder image_files...
 
-Discussion: https: //www.facebook.com/groups/greaseweazle/posts/4610561185696133/
+Discussion: https://www.facebook.com/groups/greaseweazle/posts/4610561185696133/
 
 Example file set: https://drive.google.com/file/d/1ZcHDwdnxNBubBTMhc0f95JAOiSClFhK1/view
 
