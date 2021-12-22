@@ -114,6 +114,26 @@ enum {
 	FILE_TYPE_ISAMD = 3
 };
 
+struct __attribute__((__packed__)) file_allocation_block_header {
+	uint32_t next;
+	uint32_t previous;
+	uint8_t segments;
+	struct {
+		uint8_t len;
+		char value[]; // len long
+	} prev_key;
+};
+
+struct __attribute__((__packed__)) file_allocation_segment {
+	uint32_t start;
+	uint16_t records;
+	uint8_t sectors;
+	struct {
+		uint8_t len;
+		char value[]; // len long
+	} last_key;
+};
+
 void read_at(FILE *in, int start_block, char *buf, int size)
 {
 	fseek(in, start_block * 0x100, SEEK_SET);
@@ -197,6 +217,24 @@ char *prepare_path(const char *catalogue, struct primary_directory_block_entry *
 	return path;
 }
 
+// Saves DB records as catalogue/filename/key[.seq]
+// Sequential key: NNNN in decimal
+// ISAM key: Hex value of the key value, or NULL if no key.
+// .seq is added on duplicate keys. First dup is .1, second .2 and so on
+void save_records(FILE *in, const char *catalogue, struct primary_directory_block_entry *entry)
+{
+	char fab_buf[0x400];
+	char *path = prepare_path(catalogue, entry);
+	mkdir(path, 0777);
+
+	int keysize = entry->key_size;
+	int record_size = be16toh(entry->record_size);
+	int fab_size = entry->fab_size;  // How is this used?
+	int block_size = entry->block_size;
+}
+
+// Saves contigous file as catalogue/filename
+// appends if existing to allow recovery from backups spanning multiple disks
 void save_file(FILE *in, const char *catalogue, struct primary_directory_block_entry *entry)
 {
 	char *path = prepare_path(catalogue, entry);
